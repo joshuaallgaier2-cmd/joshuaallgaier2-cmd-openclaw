@@ -606,7 +606,16 @@ export async function finalizeSetupWizard(
     };
     const displayLinks = await resolveAdvertisedControlUiLinks(controlUiLinkOptions);
     const probeLinks = resolveLocalControlUiProbeLinks(controlUiLinkOptions);
-    if ((opts.skipHealth && !sessionGateway) || (!gatewayProbe.ok && gateway.status !== "failed")) {
+    const shouldWaitForStartup =
+      gateway.status === "ready" && gateway.action !== "reused" && !sessionGateway;
+    if (shouldWaitForStartup) {
+      gatewayProbe = await waitForGatewayReachable({
+        url: probeLinks.wsUrl,
+        token: settings.authMode === "token" ? settings.gatewayToken : undefined,
+        password: probePassword,
+        ...resolveGatewayStartupTiming(),
+      });
+    } else if (!gatewayProbe.ok && gateway.status !== "failed") {
       gatewayProbe = await probeGatewayReachable({
         url: probeLinks.wsUrl,
         token: settings.authMode === "token" ? settings.gatewayToken : undefined,
